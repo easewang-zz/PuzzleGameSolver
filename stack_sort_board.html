@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stack Sort Board</title>
+  <style>
+    :root {
+      --block-w: 52px;
+      --block-h: 40px;
+      --tube-gap: 18px;
+      --row-gap: 28px;
+      --slot-font: 1.15rem;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(160deg, #e8eef5 0%, #d4dde8 50%, #c8d4e0 100%);
+      color: #1a2332;
+    }
+
+    .setup {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 16px;
+    }
+
+    .setup.hidden {
+      display: none;
+    }
+
+    .setup label {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .setup input {
+      width: 100px;
+      padding: 10px 14px;
+      font-size: 1.1rem;
+      border: 2px solid #5a7a9a;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .setup button,
+    .controls button {
+      padding: 10px 22px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: #3d6b9a;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .setup button:hover,
+    .controls button:hover:not(:disabled) {
+      background: #2f5478;
+    }
+
+    .controls button.restore {
+      background: #6b7c8d;
+    }
+
+    .controls button.restore:hover:not(:disabled) {
+      background: #556370;
+    }
+
+    .controls button.file-btn {
+      background: #4a7c59;
+    }
+
+    .controls button.file-btn:hover:not(:disabled) {
+      background: #3a6347;
+    }
+
+    .controls button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .game {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 16px;
+      align-items: stretch;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .game.visible {
+      display: flex;
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%;
+    }
+
+    .board {
+      flex: 1;
+      min-height: 0;
+      background: #f5f8fb;
+      border: 2px solid #7a92a8;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: var(--row-gap);
+      padding: 36px 20px 20px;
+      box-shadow: 0 4px 20px rgba(40, 60, 80, 0.12);
+      overflow: hidden;
+    }
+
+    .tube-row {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: var(--tube-gap);
+      flex-shrink: 0;
+    }
+
+    .tube-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .tube-arrow {
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(1rem, 2.2vh, 1.6rem);
+      font-weight: 800;
+      line-height: 1;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s;
+      z-index: 2;
+      text-shadow: 0 1px 0 #fff;
+    }
+
+    .tube-wrap.has-out .tube-arrow.out {
+      opacity: 1;
+      color: #c62828;
+    }
+
+    .tube-wrap.has-in .tube-arrow.in {
+      opacity: 1;
+      color: #2e7d32;
+    }
+
+    .tube-arrow.out { margin-left: -10px; }
+    .tube-arrow.in { margin-left: 10px; }
+
+    .tube {
+      width: calc(var(--block-w) + 8px);
+      height: calc(var(--block-h) * 4 + 12px);
+      border: 3px solid #4a6278;
+      border-top: none;
+      border-radius: 0 0 14px 14px;
+      display: flex;
+      flex-direction: column-reverse;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 3px;
+      background: rgba(255, 255, 255, 0.55);
+      position: relative;
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+
+    .tube-wrap.has-out .tube {
+      border-color: #c62828;
+      box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.25);
+    }
+
+    .tube-wrap.has-in .tube {
+      border-color: #2e7d32;
+      box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.25);
+    }
+
+    .tube::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: -6px;
+      right: -6px;
+      height: 6px;
+      border: 3px solid inherit;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      background: transparent;
+    }
+
+    .tube-num {
+      margin-top: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #5a7088;
+    }
+
+    .slot {
+      width: var(--block-w);
+      height: var(--block-h);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: var(--slot-font);
+      user-select: none;
+      margin: 1px 0;
+      border: 1px solid transparent;
+      transition: outline 0.12s, transform 0.12s;
+      flex-shrink: 0;
+    }
+
+    .slot.empty {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    .slot.drag-over {
+      outline: 2px dashed #2f5478;
+      outline-offset: -2px;
+      transform: scale(1.04);
+    }
+
+    .controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #f5f8fb;
+      border: 2px solid #7a92a8;
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 4px 20px rgba(40, 60, 80, 0.12);
+    }
+
+    .solution-panel {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .solution-total {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #3d6b9a;
+    }
+
+    .solution-step {
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .solution-hint {
+      font-size: 0.8rem;
+      color: #5a7088;
+    }
+
+    .palette {
+      width: calc(var(--block-w) + 28px);
+      flex-shrink: 0;
+      height: 100%;
+      background: #f5f8fb;
+      border: 2px solid #7a92a8;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 20px rgba(40, 60, 80, 0.12);
+      overflow-y: auto;
+    }
+
+    .palette-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #5a7088;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+
+    .palette-block {
+      width: var(--block-w);
+      height: var(--block-h);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: var(--slot-font);
+      cursor: grab;
+      user-select: none;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      flex-shrink: 0;
+    }
+
+    .palette-block:active {
+      cursor: grabbing;
+    }
+
+    .palette-block.dragging {
+      opacity: 0.45;
+    }
+
+    .c-dark-pink   { background: #c2185b; color: #fff; }
+    .c-light-pink  { background: #f8bbd0; color: #5a1a30; }
+    .c-light-green { background: #a5d6a7; color: #1b3d1c; }
+    .c-dark-green  { background: #2e7d32; color: #fff; }
+    .c-orange      { background: #fb8c00; color: #3e1f00; }
+    .c-light-brown { background: #d4a84b; color: #3e2723; }
+    .c-gray        { background: #616161; color: #fff; }
+    .c-purple      { background: #7b1fa2; color: #fff; }
+    .c-dark-brown  { background: #6d4c2b; color: #fff; }
+    .c-light-blue  { background: #81d4fa; color: #0d3a4a; }
+    .c-dark-blue   { background: #5e35b1; color: #fff; }
+    .c-red         { background: #e53935; color: #fff; }
+    .c-dark-red    { background: #8b0000; color: #fff; }
+    .c-light-red   { background: #ef9a9a; color: #5c1010; }
+    .c-unknown     { background: #eceff1; color: #37474f; border-color: #90a4ae; }
+  </style>
+</head>
+<body>
+  <div class="setup" id="setup">
+    <label for="tubeCount">Number of tubes (4–16)</label>
+    <input id="tubeCount" type="number" min="4" max="16" value="16" />
+    <button type="button" id="submitBtn">Submit</button>
+    <button type="button" id="loadSetupBtn" class="file-btn" style="background:#4a7c59">Load from file</button>
+  </div>
+
+  <div class="game" id="game">
+    <div class="main">
+      <div class="board" id="board"></div>
+      <div class="controls">
+        <div class="control-buttons">
+          <button type="button" id="startBtn">Start</button>
+          <button type="button" id="restoreBtn" class="restore" disabled>Restore</button>
+          <button type="button" id="saveBtn" class="file-btn">Save</button>
+          <button type="button" id="loadBtn" class="file-btn">Load</button>
+        </div>
+        <div class="solution-panel">
+          <div class="solution-total" id="solutionTotal">Fill the tubes, then press Start to solve.</div>
+          <div class="solution-step" id="solutionStep"></div>
+          <div class="solution-hint" id="solutionHint">← → to step through · replace ? then Start to continue</div>
+        </div>
+      </div>
+    </div>
+    <div class="palette" id="palette">
+      <div class="palette-title">Colors</div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json,application/json" hidden />
+
+  <script>
+    const COLORS = [
+      { id: "dark-pink",   label: "",  className: "c-dark-pink",   code: "A" },
+      { id: "light-pink",  label: "",  className: "c-light-pink",  code: "B" },
+      { id: "light-green", label: "",  className: "c-light-green", code: "C" },
+      { id: "dark-green",  label: "",  className: "c-dark-green",  code: "D" },
+      { id: "orange",      label: "",  className: "c-orange",      code: "E" },
+      { id: "light-brown", label: "",  className: "c-light-brown", code: "F" },
+      { id: "gray",        label: "",  className: "c-gray",        code: "G" },
+      { id: "purple",      label: "",  className: "c-purple",      code: "H" },
+      { id: "dark-brown",  label: "",  className: "c-dark-brown",  code: "I" },
+      { id: "light-blue",  label: "",  className: "c-light-blue",  code: "J" },
+      { id: "dark-blue",   label: "",  className: "c-dark-blue",   code: "K" },
+      { id: "red",         label: "",  className: "c-red",         code: "L" },
+      { id: "dark-red",    label: "",  className: "c-dark-red",    code: "M" },
+      { id: "light-red",   label: "",  className: "c-light-red",   code: "N" },
+      { id: "unknown",     label: "?", className: "c-unknown",     code: "?" },
+    ];
+
+    const CODE_TO_COLOR = Object.fromEntries(COLORS.map((c) => [c.code, c.id]));
+    const COLOR_TO_CODE = Object.fromEntries(COLORS.map((c) => [c.id, c.code]));
+
+    const CAPACITY = 4;
+    const MAX_PER_ROW = 6;
+
+    const setup = document.getElementById("setup");
+    const game = document.getElementById("game");
+    const board = document.getElementById("board");
+    const palette = document.getElementById("palette");
+    const submitBtn = document.getElementById("submitBtn");
+    const startBtn = document.getElementById("startBtn");
+    const restoreBtn = document.getElementById("restoreBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const loadBtn = document.getElementById("loadBtn");
+    const loadSetupBtn = document.getElementById("loadSetupBtn");
+    const fileInput = document.getElementById("fileInput");
+    const tubeCountInput = document.getElementById("tubeCount");
+    const solutionTotal = document.getElementById("solutionTotal");
+    const solutionStep = document.getElementById("solutionStep");
+    const solutionHint = document.getElementById("solutionHint");
+
+    let dragColorId = null;
+    let currentCount = 0;
+    /** @type {HTMLElement[]} */
+    let tubeWraps = [];
+
+    /** @type {[number, number, number][] | null} */
+    let solutionMoves = null;
+    /** @type {string[][] | null} */
+    let initialStacks = null;
+    /** Original puzzle state captured on first Start; Restore returns here. */
+    /** @type {string[][] | null} */
+    let originalStacks = null;
+    let stepIndex = 0;
+
+    /** @param {string[][]} stacks */
+    function cloneStacks(stacks) {
+      return stacks.map((items) => items.slice());
+    }
+
+    // ---------- Solver (browser port of stack_sort_solver.js) ----------
+
+    class Stack {
+      /** @param {string[]} items @param {number} capacity */
+      constructor(items, capacity) {
+        this.items = items ? items.slice() : [];
+        this.capacity = capacity;
+      }
+
+      clone() {
+        return new Stack(this.items.slice(), this.capacity);
+      }
+
+      top() {
+        return this.items.length === 0 ? null : this.items[this.items.length - 1];
+      }
+
+      isEmpty() {
+        return this.items.length === 0;
+      }
+
+      pop() {
+        return this.items.pop();
+      }
+
+      /** @param {string} value */
+      push(value) {
+        this.items.push(value);
+      }
+
+      /** @param {string} value */
+      canPush(value) {
+        if (this.items.length >= this.capacity) return false;
+        if (this.isEmpty()) return true;
+        if (this.top() === "?") return false;
+        return this.top() === value;
+      }
+
+      isUniform() {
+        return this.items.length === 0 || this.items.every((v) => v === this.items[0]);
+      }
+
+      isSolved() {
+        return this.isEmpty() || (this.items.length === this.capacity && this.isUniform());
+      }
+
+      freeSlots() {
+        return this.capacity - this.items.length;
+      }
+
+      topGroupSize() {
+        if (this.items.length === 0) return 0;
+        const color = this.top();
+        let count = 0;
+        for (let i = this.items.length - 1; i >= 0; i -= 1) {
+          if (this.items[i] !== color) break;
+          count += 1;
+        }
+        return count;
+      }
+    }
+
+    class State {
+      /** @param {Stack[]} stacks @param {number} capacity */
+      constructor(stacks, capacity) {
+        this.stacks = stacks;
+        this.capacity = capacity;
+      }
+
+      clone() {
+        return new State(
+          this.stacks.map((s) => s.clone()),
+          this.capacity
+        );
+      }
+
+      /** @param {number} [deepth] */
+      isSolved(deepth) {
+        if (this.stacks.every((stack) => stack.isSolved())) return true;
+        if (deepth == null) return false;
+        return this.stacks.filter((stack) => stack.top() === "?").length >= deepth;
+      }
+
+      encode() {
+        return this.stacks.map((stack) => stack.items.join(",")).join("|");
+      }
+
+      /** @param {[number, number, number] | null} lastMove */
+      legalMoves(lastMove) {
+        /** @type {[number, number, number][]} */
+        const moves = [];
+        /** @type {number[]} */
+        const emptyIndices = [];
+        for (let i = 0; i < this.stacks.length; i += 1) {
+          if (this.stacks[i].isEmpty()) emptyIndices.push(i);
+        }
+        const firstEmpty = emptyIndices.length > 0 ? emptyIndices[0] : -1;
+
+        for (let i = 0; i < this.stacks.length; i += 1) {
+          const src = this.stacks[i];
+          if (src.isEmpty()) continue;
+          if (src.isSolved()) continue;
+
+          const top = src.top();
+          if (top === null || top === "?") continue;
+          const groupSize = src.topGroupSize();
+
+          for (let j = 0; j < this.stacks.length; j += 1) {
+            if (i === j) continue;
+            if (lastMove && i === lastMove[1] && j === lastMove[0]) continue;
+
+            const dst = this.stacks[j];
+            if (!dst.canPush(top)) continue;
+            if (dst.isEmpty() && firstEmpty !== -1 && j !== firstEmpty) continue;
+            if (dst.isEmpty() && groupSize === src.items.length) continue;
+            if (groupSize > dst.freeSlots()) continue;
+            const count = Math.min(groupSize, dst.freeSlots());
+            if (count <= 0) continue;
+            moves.push([i, j, count]);
+          }
+        }
+        return moves;
+      }
+
+      /** @param {[number, number, number]} move */
+      applyMove(move) {
+        const [from, to, count] = move;
+        for (let k = 0; k < count; k += 1) {
+          const value = this.stacks[from].pop();
+          if (value === undefined) throw new Error("Invalid move: source empty.");
+          this.stacks[to].push(value);
+        }
+      }
+
+      /** @param {[number, number, number]} move */
+      undoMove(move) {
+        const [from, to, count] = move;
+        for (let k = 0; k < count; k += 1) {
+          const value = this.stacks[to].pop();
+          if (value === undefined) throw new Error("Invalid undo.");
+          this.stacks[from].push(value);
+        }
+      }
+
+      /**
+       * @param {[number, number, number][]} historyMoves
+       * @param {[number, number, number] | null} newMove
+       * @param {Set<string>} pathStates
+       * @param {number} deepth
+       * @param {number} loop
+       */
+      search(historyMoves, newMove, pathStates, deepth, loop) {
+        if (newMove) {
+          this.applyMove(newMove);
+          historyMoves.push(newMove);
+        }
+
+        if (this.isSolved(deepth)) return true;
+
+        const key = this.encode();
+        if (pathStates.has(key)) {
+          if (newMove) {
+            historyMoves.pop();
+            this.undoMove(newMove);
+          }
+          return false;
+        }
+        pathStates.add(key);
+
+        const lastMove = historyMoves.length > 0 ? historyMoves[historyMoves.length - 1] : null;
+        const possibleMoves = this.legalMoves(lastMove);
+        const prefixLen = historyMoves.length;
+        /** @type {[number, number, number][] | null} */
+        let bestMoves = null;
+
+        for (let index = 0; index < possibleMoves.length; index++) {
+          if (this.search(historyMoves, possibleMoves[index], pathStates, deepth, loop + 1)) {
+            if (!bestMoves || historyMoves.length > bestMoves.length) {
+              bestMoves = historyMoves.slice();
+            }
+            while (historyMoves.length > prefixLen) {
+              const m = historyMoves.pop();
+              this.undoMove(m);
+            }
+          }
+        }
+
+        if (bestMoves) {
+          for (let i = prefixLen; i < bestMoves.length; i++) {
+            this.applyMove(bestMoves[i]);
+            historyMoves.push(bestMoves[i]);
+          }
+          return true;
+        }
+
+        if (newMove) {
+          historyMoves.pop();
+          this.undoMove(newMove);
+        }
+        return false;
+      }
+
+      /** @param {number} deepth */
+      solve(deepth) {
+        if (this.isSolved()) return [];
+        const historyMoves = [];
+        const pathStates = new Set();
+        if (this.search(historyMoves, null, pathStates, deepth, 0)) {
+          return historyMoves.slice();
+        }
+        return null;
+      }
+    }
+
+    // ---------- Board UI ----------
+
+    function colorById(id) {
+      return COLORS.find((c) => c.id === id);
+    }
+
+    function applyColor(el, colorId) {
+      COLORS.forEach((c) => el.classList.remove(c.className));
+      el.classList.remove("empty");
+      const color = colorById(colorId);
+      if (!color) {
+        el.classList.add("empty");
+        el.textContent = "";
+        el.dataset.color = "";
+        return;
+      }
+      el.classList.add(color.className);
+      el.textContent = color.label;
+      el.dataset.color = color.id;
+    }
+
+    function createSlot(colorId) {
+      const slot = document.createElement("div");
+      slot.className = "slot";
+      if (colorId) applyColor(slot, colorId);
+      else {
+        slot.classList.add("empty");
+        slot.dataset.color = "";
+      }
+
+      slot.addEventListener("dragover", (e) => {
+        if (!dragColorId) return;
+        e.preventDefault();
+        slot.classList.add("drag-over");
+      });
+      slot.addEventListener("dragleave", () => slot.classList.remove("drag-over"));
+      slot.addEventListener("drop", (e) => {
+        e.preventDefault();
+        slot.classList.remove("drag-over");
+        if (!dragColorId) return;
+        applyColor(slot, dragColorId);
+        onBoardEdited(slot);
+      });
+
+      return slot;
+    }
+
+    function createTube(isEmpty, index) {
+      const wrap = document.createElement("div");
+      wrap.className = "tube-wrap";
+      wrap.dataset.index = String(index);
+
+      const outArrow = document.createElement("div");
+      outArrow.className = "tube-arrow out";
+      outArrow.textContent = "↑ out";
+
+      const inArrow = document.createElement("div");
+      inArrow.className = "tube-arrow in";
+      inArrow.textContent = "↓ in";
+
+      const tube = document.createElement("div");
+      tube.className = "tube";
+      for (let i = 0; i < CAPACITY; i++) {
+        tube.appendChild(createSlot(isEmpty ? null : "unknown"));
+      }
+
+      const num = document.createElement("div");
+      num.className = "tube-num";
+      num.textContent = String(index + 1);
+
+      wrap.appendChild(outArrow);
+      wrap.appendChild(inArrow);
+      wrap.appendChild(tube);
+      wrap.appendChild(num);
+      return wrap;
+    }
+
+    function rowSizes(count) {
+      const rows = [];
+      let remaining = count;
+      while (remaining > 0) {
+        const take = Math.min(MAX_PER_ROW, remaining);
+        rows.push(take);
+        remaining -= take;
+      }
+      return rows;
+    }
+
+    function fitBoard(count) {
+      const rows = rowSizes(count);
+      const rowCount = rows.length;
+      const colCount = Math.max(...rows);
+
+      const style = getComputedStyle(board);
+      const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const availW = board.clientWidth - padX;
+      const availH = board.clientHeight - padY;
+
+      const lipX = 12;
+      const tubeChromeX = 8 + 6;
+      const tubeChromeY = 36;
+      const gapX = Math.max(10, Math.min(18, Math.floor(availW * 0.02)));
+      const gapY = Math.max(16, Math.min(28, Math.floor(availH * 0.04)));
+
+      const maxBlockW = Math.floor(
+        (availW - (colCount - 1) * gapX - colCount * (lipX + tubeChromeX)) / colCount
+      );
+      const maxBlockH = Math.floor(
+        (availH - (rowCount - 1) * gapY - rowCount * tubeChromeY) / (rowCount * CAPACITY)
+      );
+
+      const blockW = Math.max(24, Math.min(64, maxBlockW));
+      const blockH = Math.max(18, Math.min(48, maxBlockH));
+      const fontPx = Math.max(12, Math.min(20, Math.floor(Math.min(blockW, blockH) * 0.45)));
+
+      const root = document.documentElement;
+      root.style.setProperty("--block-w", `${blockW}px`);
+      root.style.setProperty("--block-h", `${blockH}px`);
+      root.style.setProperty("--tube-gap", `${gapX}px`);
+      root.style.setProperty("--row-gap", `${gapY}px`);
+      root.style.setProperty("--slot-font", `${fontPx}px`);
+    }
+
+    function layoutTubes(count) {
+      currentCount = count;
+      board.innerHTML = "";
+      tubeWraps = [];
+      originalStacks = null;
+      clearSolution();
+      updateRestoreButton();
+
+      const rows = rowSizes(count);
+      let tubeIndex = 0;
+
+      rows.forEach((rowSize) => {
+        const row = document.createElement("div");
+        row.className = "tube-row";
+        for (let i = 0; i < rowSize; i++) {
+          const isEmpty = tubeIndex >= count - 2;
+          const wrap = createTube(isEmpty, tubeIndex);
+          row.appendChild(wrap);
+          tubeWraps.push(wrap);
+          tubeIndex++;
+        }
+        board.appendChild(row);
+      });
+
+      fitBoard(count);
+    }
+
+    function buildPalette() {
+      COLORS.forEach((color) => {
+        const block = document.createElement("div");
+        block.className = `palette-block ${color.className}`;
+        block.textContent = color.label;
+        block.draggable = true;
+        block.title = color.id === "unknown" ? "?" : color.id.replace(/-/g, " ");
+        block.dataset.color = color.id;
+
+        block.addEventListener("dragstart", (e) => {
+          dragColorId = color.id;
+          block.classList.add("dragging");
+          e.dataTransfer.setData("text/plain", color.id);
+          e.dataTransfer.effectAllowed = "copy";
+        });
+        block.addEventListener("dragend", () => {
+          dragColorId = null;
+          block.classList.remove("dragging");
+        });
+
+        palette.appendChild(block);
+      });
+    }
+
+    /** Read board → stack items bottom→top as letter codes. */
+    function readBoardStacks() {
+      return tubeWraps.map((wrap) => {
+        const slots = [...wrap.querySelectorAll(".slot")];
+        /** @type {string[]} */
+        const items = [];
+        for (const slot of slots) {
+          const colorId = slot.dataset.color;
+          if (!colorId) break;
+          items.push(COLOR_TO_CODE[colorId]);
+        }
+        return items;
+      });
+    }
+
+    /** @param {string[][]} stacks */
+    function renderStacks(stacks) {
+      tubeWraps.forEach((wrap, i) => {
+        const items = stacks[i] || [];
+        const slots = [...wrap.querySelectorAll(".slot")];
+        for (let s = 0; s < CAPACITY; s++) {
+          if (s < items.length) {
+            applyColor(slots[s], CODE_TO_COLOR[items[s]] || "unknown");
+          } else {
+            applyColor(slots[s], null);
+          }
+        }
+      });
+    }
+
+    function clearArrows() {
+      tubeWraps.forEach((wrap) => {
+        wrap.classList.remove("has-out", "has-in");
+      });
+    }
+
+    /** @param {number} from @param {number} to */
+    function showArrows(from, to) {
+      clearArrows();
+      if (tubeWraps[from]) tubeWraps[from].classList.add("has-out");
+      if (tubeWraps[to]) tubeWraps[to].classList.add("has-in");
+    }
+
+    function clearSolution(message) {
+      solutionMoves = null;
+      initialStacks = null;
+      stepIndex = 0;
+      clearArrows();
+      solutionTotal.textContent =
+        message || "Fill the tubes, then press Start to solve.";
+      solutionStep.textContent = "";
+      solutionHint.textContent =
+        "← → to step through · replace ? then Start to continue";
+      updateRestoreButton();
+    }
+
+    /**
+     * Two boards:
+     * - originalStacks: set on first Start (or first edit before Start). Only changes via drag-drop.
+     * - current (DOM): changes via moves (stepping) and drag-drop.
+     * Moves never touch original. Restore paints original back onto the DOM.
+     * @param {HTMLElement} slotEl
+     */
+    function onBoardEdited(slotEl) {
+      const wrap = slotEl.closest(".tube-wrap");
+      const tubeIndex = wrap ? Number(wrap.dataset.index) : -1;
+      const slots = wrap ? [...wrap.querySelectorAll(".slot")] : [];
+      const slotIndex = slots.indexOf(slotEl);
+      const colorId = slotEl.dataset.color;
+      const code = colorId ? COLOR_TO_CODE[colorId] : null;
+
+      if (tubeIndex < 0 || slotIndex < 0) return;
+
+      // Original reacts only to drag-drop (never to move playback)
+      if (!originalStacks) {
+        // Before first Start: board is still the beginning — seed original from it
+        originalStacks = cloneStacks(readBoardStacks());
+      } else {
+        patchOriginalSlot(tubeIndex, slotIndex, code);
+      }
+
+      // Drop active move playback; current DOM already has the new color
+      if (solutionMoves || initialStacks) {
+        solutionMoves = null;
+        initialStacks = null;
+        stepIndex = 0;
+        clearArrows();
+        solutionTotal.textContent =
+          "Color updated — press Start to continue, or Restore for original.";
+        solutionStep.textContent = "";
+      } else {
+        solutionTotal.textContent =
+          "Board edited — press Start to solve from current state.";
+        solutionStep.textContent = "";
+      }
+      updateRestoreButton();
+    }
+
+    /**
+     * Update one cell in the original beginning snapshot.
+     * @param {number} tubeIndex
+     * @param {number} slotIndex
+     * @param {string | null} code
+     */
+    function patchOriginalSlot(tubeIndex, slotIndex, code) {
+      if (!originalStacks[tubeIndex]) {
+        originalStacks[tubeIndex] = [];
+      }
+      const items = originalStacks[tubeIndex];
+      if (code == null) {
+        if (slotIndex < items.length) {
+          items.length = slotIndex;
+        }
+        return;
+      }
+      if (slotIndex < items.length) {
+        items[slotIndex] = code;
+      } else if (slotIndex === items.length) {
+        items.push(code);
+      }
+    }
+
+    function updateRestoreButton() {
+      restoreBtn.disabled = !originalStacks;
+    }
+
+    function restoreOriginal() {
+      if (!originalStacks) return;
+      // Current ← original; original itself unchanged
+      renderStacks(cloneStacks(originalStacks));
+      solutionMoves = null;
+      initialStacks = null;
+      stepIndex = 0;
+      clearArrows();
+      solutionTotal.textContent = "Restored to original. Press Start to solve.";
+      solutionStep.textContent = "";
+      solutionHint.textContent =
+        "← → to step through · replace ? then Start to continue";
+      updateRestoreButton();
+    }
+
+    function boardHasUnknown() {
+      return readBoardStacks().some((items) => items.includes("?"));
+    }
+
+    /** Build a serializable snapshot of the current puzzle. */
+    function buildSavePayload() {
+      return {
+        version: 1,
+        tubeCount: currentCount,
+        capacity: CAPACITY,
+        stacks: readBoardStacks(),
+        originalStacks: originalStacks ? cloneStacks(originalStacks) : null,
+        savedAt: new Date().toISOString(),
+      };
+    }
+
+    function saveStateToFile() {
+      if (currentCount < 4) {
+        alert("Nothing to save yet.");
+        return;
+      }
+      const payload = buildSavePayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const stamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "-");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `stack-sort-${payload.tubeCount}t-${stamp}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      solutionTotal.textContent = "State saved to file.";
+    }
+
+    /**
+     * @param {object} data
+     */
+    function applyLoadedState(data) {
+      const count = Number(data.tubeCount);
+      if (!Number.isInteger(count) || count < 4 || count > 16) {
+        throw new Error("Invalid tubeCount (need 4–16).");
+      }
+      if (!Array.isArray(data.stacks) || data.stacks.length !== count) {
+        throw new Error("stacks length must match tubeCount.");
+      }
+
+      const validCodes = new Set(COLORS.map((c) => c.code));
+      const stacks = data.stacks.map((items, i) => {
+        if (!Array.isArray(items)) {
+          throw new Error(`Tube ${i + 1} is not an array.`);
+        }
+        if (items.length > CAPACITY) {
+          throw new Error(`Tube ${i + 1} has more than ${CAPACITY} blocks.`);
+        }
+        return items.map((code) => {
+          if (!validCodes.has(code)) {
+            throw new Error(`Unknown color code "${code}" in tube ${i + 1}.`);
+          }
+          return code;
+        });
+      });
+
+      setup.classList.add("hidden");
+      game.classList.add("visible");
+      layoutTubes(count);
+
+      requestAnimationFrame(() => {
+        renderStacks(stacks);
+        if (data.originalStacks && Array.isArray(data.originalStacks)) {
+          originalStacks = cloneStacks(data.originalStacks);
+        } else {
+          originalStacks = cloneStacks(stacks);
+        }
+        clearSolution("Loaded from file. Press Start to solve.");
+        updateRestoreButton();
+      });
+    }
+
+    function loadStateFromFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(String(reader.result));
+          applyLoadedState(data);
+        } catch (err) {
+          alert("Could not load file: " + (err.message || err));
+        }
+      };
+      reader.onerror = () => alert("Failed to read file.");
+      reader.readAsText(file);
+    }
+
+    /**
+     * State after applying the first `appliedCount` moves.
+     * @param {number} appliedCount
+     */
+    function stacksAt(appliedCount) {
+      if (!initialStacks) return readBoardStacks();
+      const state = new State(
+        initialStacks.map((items) => new Stack(items, CAPACITY)),
+        CAPACITY
+      );
+      for (let i = 0; i < appliedCount; i++) {
+        state.applyMove(solutionMoves[i]);
+      }
+      return state.stacks.map((s) => s.items.slice());
+    }
+
+    function updateStepView() {
+      if (!solutionMoves || !initialStacks) return;
+
+      const total = solutionMoves.length;
+
+      if (stepIndex >= total) {
+        renderStacks(stacksAt(total));
+        clearArrows();
+        solutionTotal.textContent = `Total steps: ${total}`;
+        solutionStep.textContent = "Done.";
+        solutionHint.textContent = boardHasUnknown()
+          ? "Replace unveiled ? with colors, then press Start to continue"
+          : "← to go back · Restore for original";
+        return;
+      }
+
+      // Show board before this move; arrows indicate the move to make
+      renderStacks(stacksAt(stepIndex));
+      const [from, to, count] = solutionMoves[stepIndex];
+      showArrows(from, to);
+      solutionTotal.textContent = `Total steps: ${total}`;
+      solutionStep.textContent = `step ${stepIndex + 1}. ${from + 1} -> ${to + 1} (x${count})`;
+      solutionHint.textContent =
+        "← previous   → next · replace ? then Start to continue";
+    }
+
+    function goStep(delta) {
+      if (!solutionMoves) return;
+      const max = solutionMoves.length;
+      const next = Math.max(0, Math.min(max, stepIndex + delta));
+      if (next === stepIndex) return;
+      stepIndex = next;
+      updateStepView();
+    }
+
+    async function runSolve() {
+      startBtn.disabled = true;
+      restoreBtn.disabled = true;
+      solutionTotal.textContent = "Solving…";
+      solutionStep.textContent = "";
+      clearArrows();
+
+      await new Promise((r) => setTimeout(r, 30));
+
+      // Always solve from current board. Original is set only once (first Start).
+      const snapshot = readBoardStacks();
+      if (!originalStacks) {
+        originalStacks = cloneStacks(snapshot);
+      }
+      // Never reassign originalStacks here on later Starts — moves / continue-solve
+      // must not overwrite the drag-drop-only original.
+
+      const state = new State(
+        snapshot.map((items) => new Stack(items, CAPACITY)),
+        CAPACITY
+      );
+
+      let moves = null;
+      try {
+        for (let d = 3; d >= 1; d--) {
+          solutionTotal.textContent = `Solving… (depth ${d})`;
+          await new Promise((r) => setTimeout(r, 10));
+          moves = state.clone().solve(d);
+          if (moves && moves.length > 0) break;
+          if (moves && moves.length === 0) {
+            moves = [];
+            break;
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        solutionTotal.textContent = "Solver error.";
+        solutionStep.textContent = String(err.message || err);
+        startBtn.disabled = false;
+        updateRestoreButton();
+        return;
+      }
+
+      startBtn.disabled = false;
+      updateRestoreButton();
+
+      if (!moves) {
+        solutionMoves = null;
+        initialStacks = null;
+        solutionTotal.textContent = "No solution found.";
+        solutionStep.textContent = "";
+        solutionHint.textContent =
+          "Replace ? or adjust colors, then Start again";
+        return;
+      }
+
+      if (moves.length === 0) {
+        solutionMoves = [];
+        initialStacks = snapshot;
+        stepIndex = 0;
+        solutionTotal.textContent = "Total steps: 0";
+        solutionStep.textContent = "Already solved.";
+        clearArrows();
+        solutionHint.textContent = boardHasUnknown()
+          ? "Replace unveiled ? with colors, then press Start to continue"
+          : "Restore to return to original";
+        return;
+      }
+
+      // Playback baseline is current board (may be mid-puzzle after unveiling ?)
+      initialStacks = snapshot;
+      solutionMoves = moves;
+      stepIndex = 0;
+      updateStepView();
+    }
+
+    // ---------- Events ----------
+
+    submitBtn.addEventListener("click", () => {
+      const n = Number(tubeCountInput.value);
+      if (!Number.isInteger(n) || n < 4 || n > 16) {
+        alert("Please enter an integer from 4 to 16.");
+        return;
+      }
+      setup.classList.add("hidden");
+      game.classList.add("visible");
+      requestAnimationFrame(() => layoutTubes(n));
+    });
+
+    tubeCountInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitBtn.click();
+    });
+
+    startBtn.addEventListener("click", () => {
+      runSolve();
+    });
+
+    restoreBtn.addEventListener("click", () => {
+      restoreOriginal();
+    });
+
+    saveBtn.addEventListener("click", () => {
+      saveStateToFile();
+    });
+
+    function openFilePicker() {
+      fileInput.value = "";
+      fileInput.click();
+    }
+
+    loadBtn.addEventListener("click", openFilePicker);
+    loadSetupBtn.addEventListener("click", openFilePicker);
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (file) loadStateFromFile(file);
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!solutionMoves) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        goStep(-1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        goStep(1);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (currentCount > 0) fitBoard(currentCount);
+    });
+
+    buildPalette();
+  </script>
+</body>
+</html>
