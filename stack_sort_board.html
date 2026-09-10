@@ -168,9 +168,15 @@
       text-shadow: 0 1px 0 #fff;
     }
 
+    .tube-wrap.has-out {
+      cursor: pointer;
+    }
+
     .tube-wrap.has-out .tube-arrow.out {
       opacity: 1;
       color: #c62828;
+      pointer-events: auto;
+      cursor: pointer;
     }
 
     .tube-wrap.has-in .tube-arrow.in {
@@ -372,15 +378,15 @@
       <div class="board" id="board"></div>
       <div class="controls">
         <div class="control-buttons">
-          <button type="button" id="startBtn">Start</button>
-          <button type="button" id="restoreBtn" class="restore" disabled>Restore</button>
+          <button type="button" id="startBtn">Solve</button>
+          <button type="button" id="restoreBtn" class="restore" disabled>Start over</button>
           <button type="button" id="saveBtn" class="file-btn">Save</button>
           <button type="button" id="loadBtn" class="file-btn">Load</button>
         </div>
         <div class="solution-panel">
-          <div class="solution-total" id="solutionTotal">Fill the tubes, then press Start to solve.</div>
+          <div class="solution-total" id="solutionTotal">Drag a color from the palette onto a tube block to set or replace it, then press Solve.</div>
           <div class="solution-step" id="solutionStep"></div>
-          <div class="solution-hint" id="solutionHint">← → to step through · replace ? then Start to continue</div>
+          <div class="solution-hint" id="solutionHint">Click the ↑ out tube to apply the move · Keyboard ← → for prev / next · when a ? block is unveiled, drag palette colors onto it, then Solve to continue · you can also use drag & drop to initialize the game at the beginning</div>
         </div>
       </div>
     </div>
@@ -889,10 +895,10 @@
       stepIndex = 0;
       clearArrows();
       solutionTotal.textContent =
-        message || "Fill the tubes, then press Start to solve.";
+        message || "Drag a color from the palette onto a tube block to set or replace it, then press Solve.";
       solutionStep.textContent = "";
       solutionHint.textContent =
-        "← → to step through · replace ? then Start to continue";
+        "Click the ↑ out tube to apply the move · Keyboard ← → for prev / next · when a ? block is unveiled, drag palette colors onto it, then Solve to continue · you can also use drag & drop to initialize the game at the beginning";
       updateRestoreButton();
     }
 
@@ -928,11 +934,11 @@
         stepIndex = 0;
         clearArrows();
         solutionTotal.textContent =
-          "Color updated — press Start to continue, or Restore for original.";
+          "Color updated — press Solve to continue, or Start over for original.";
         solutionStep.textContent = "";
       } else {
         solutionTotal.textContent =
-          "Board edited — press Start to solve from current state.";
+          "Board edited — press Solve from the current board.";
         solutionStep.textContent = "";
       }
       updateRestoreButton();
@@ -974,10 +980,10 @@
       initialStacks = null;
       stepIndex = 0;
       clearArrows();
-      solutionTotal.textContent = "Restored to original. Press Start to solve.";
+      solutionTotal.textContent = "Started over from original. Drag palette colors onto tube blocks if needed, then press Solve.";
       solutionStep.textContent = "";
       solutionHint.textContent =
-        "← → to step through · replace ? then Start to continue";
+        "Click the ↑ out tube to apply the move · Keyboard ← → for prev / next · when a ? block is unveiled, drag palette colors onto it, then Solve to continue · you can also use drag & drop to initialize the game at the beginning";
       updateRestoreButton();
     }
 
@@ -1057,7 +1063,7 @@
         } else {
           originalStacks = cloneStacks(stacks);
         }
-        clearSolution("Loaded from file. Press Start to solve.");
+        clearSolution("Loaded from file. Drag palette colors onto tube blocks if needed, then press Solve.");
         updateRestoreButton();
       });
     }
@@ -1103,8 +1109,8 @@
         solutionTotal.textContent = `Total steps: ${total}`;
         solutionStep.textContent = "Done.";
         solutionHint.textContent = boardHasUnknown()
-          ? "Replace unveiled ? with colors, then press Start to continue"
-          : "← to go back · Restore for original";
+          ? "When a ? block is unveiled, drag a palette color onto it, then press Solve to continue"
+          : "Keyboard ← to go back · Start over for original";
         return;
       }
 
@@ -1114,8 +1120,11 @@
       showArrows(from, to);
       solutionTotal.textContent = `Total steps: ${total}`;
       solutionStep.textContent = `step ${stepIndex + 1}. ${from + 1} -> ${to + 1} (x${count})`;
-      solutionHint.textContent =
-        "← previous   → next · replace ? then Start to continue";
+      const stepNav =
+        "Click the ↑ out tube (blocks leaving) to go to the next step · Keyboard ← prev  → next";
+      solutionHint.textContent = boardHasUnknown()
+        ? `${stepNav} · when a ? block is unveiled, drag palette colors onto it, then Solve to continue`
+        : stepNav;
     }
 
     function goStep(delta) {
@@ -1179,7 +1188,7 @@
         solutionTotal.textContent = "No solution found.";
         solutionStep.textContent = "";
         solutionHint.textContent =
-          "Replace ? or adjust colors, then Start again";
+          "Drag palette colors onto tube blocks to adjust, then press Solve again";
         return;
       }
 
@@ -1191,8 +1200,8 @@
         solutionStep.textContent = "Already solved.";
         clearArrows();
         solutionHint.textContent = boardHasUnknown()
-          ? "Replace unveiled ? with colors, then press Start to continue"
-          : "Restore to return to original";
+          ? "When a ? block is unveiled, drag a palette color onto it, then press Solve to continue"
+          : "Start over to return to original";
         return;
       }
 
@@ -1254,6 +1263,13 @@
         e.preventDefault();
         goStep(1);
       }
+    });
+
+    board.addEventListener("click", (e) => {
+      if (!solutionMoves) return;
+      const wrap = e.target.closest(".tube-wrap.has-out");
+      if (!wrap) return;
+      goStep(1);
     });
 
     window.addEventListener("resize", () => {
