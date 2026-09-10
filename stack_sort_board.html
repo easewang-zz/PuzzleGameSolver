@@ -991,14 +991,31 @@
       return readBoardStacks().some((items) => items.includes("?"));
     }
 
-    /** Build a serializable snapshot of the current puzzle. */
+    /** @param {string[][]} a @param {string[][]} b */
+    function stacksEqual(a, b) {
+      if (!a || !b || a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        const x = a[i];
+        const y = b[i];
+        if (x.length !== y.length) return false;
+        for (let j = 0; j < x.length; j++) {
+          if (x[j] !== y[j]) return false;
+        }
+      }
+      return true;
+    }
+
+    /** Build a serializable snapshot of the Start-over (initial) puzzle state. */
     function buildSavePayload() {
+      const initial = originalStacks
+        ? cloneStacks(originalStacks)
+        : readBoardStacks();
       return {
         version: 1,
         tubeCount: currentCount,
         capacity: CAPACITY,
-        stacks: readBoardStacks(),
-        originalStacks: originalStacks ? cloneStacks(originalStacks) : null,
+        stacks: initial,
+        originalStacks: cloneStacks(initial),
         savedAt: new Date().toISOString(),
       };
     }
@@ -1021,7 +1038,8 @@
       a.download = `stack-sort-${payload.tubeCount}t-${stamp}.json`;
       a.click();
       URL.revokeObjectURL(a.href);
-      solutionTotal.textContent = "State saved to file.";
+      solutionTotal.textContent =
+        "Initial state saved (same board as Start over).";
     }
 
     /**
@@ -1185,10 +1203,18 @@
       if (!moves) {
         solutionMoves = null;
         initialStacks = null;
-        solutionTotal.textContent = "No solution found.";
-        solutionStep.textContent = "";
-        solutionHint.textContent =
-          "Drag palette colors onto tube blocks to adjust, then press Solve again";
+        const atBeginning = stacksEqual(snapshot, originalStacks);
+        if (atBeginning) {
+          solutionTotal.textContent = "No solution from the starting board.";
+          solutionStep.textContent = "";
+          solutionHint.textContent =
+            "Either this puzzle has no solution at all, or the initial setup is invalid — check your colors and try again.";
+        } else {
+          solutionTotal.textContent = "Dead end — this path has no solution.";
+          solutionStep.textContent = "";
+          solutionHint.textContent =
+            "Press Start over to return to the initial state (? colors you replaced by drag & drop are kept), then try again with Solve.";
+        }
         return;
       }
 
